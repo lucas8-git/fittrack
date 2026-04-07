@@ -1,66 +1,70 @@
-import { auth } from "@/auth";
+/**
+ * GET    /api/workouts/:id — Get a single workout with all exercises & sets
+ * PATCH  /api/workouts/:id — Update workout (finish it, add notes, etc.)
+ * DELETE /api/workouts/:id — Delete a workout
+ */
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+type Params = { params: { id: string } };
 
-    const workout = await prisma.workout.findUnique({
-      where: { id: params.id },
-      include: {
-        exercises: {
-          include: {
-            exercise: true,
-            sets: true,
-          },
+export async function GET(_req: Request, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const workout = await prisma.workout.findFirst({
+    where: { id: params.id, userId: session.user.id },
+    include: {
+      exercises: {
+        orderBy: { order: "asc" },
+        include: {
+          exercise: true,
+          sets:     { orderBy: { setNumber: "asc" } },
         },
       },
-    });
+    },
+  });
 
-    if (!workout) {
-      return NextResponse.json({ error: "Workout not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(workout);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch workout" }, { status: 500 });
-  }
+  if (!workout) return NextResponse.json({ error: "Séance introuvable" }, { status: 404 });
+  return NextResponse.json(workout);
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function PATCH(req: Request, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
-    const body = await req.json();
-    const { status, duration } = body;
+  const body = await req.json();
 
-    const workout = await prisma.workout.update({
-      where: { id: params.id },
-      data: {
-        status: status || undefined,
-        duration: duration || undefined,
-      },
-      include: {
-        exercises: {
-          include: {
-            exercise: true,
-            sets: true,
-          },
-        },
-      },
-    });
+  // Verify ownership
+  const existing = await prisma.workout.findFirst({
+    where: { id: params.id, userId: session.user.id },
+  });
+  if (!existing) return NextResponse.json({ error: "Séance introuvable" }, { status: 404 });
 
-    return NextResponse.json(workout);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update workout" }, { status: 500 });
-  }
+  const updated = await prisma.workout.update({
+    where: { id: params.id },
+    data: {
+      status:     body.status     ?? existing.status,
+      notes:      body.notes      ?? existing.notes,
+      name:       body.name       ?? existing.name,
+      finishedAt: body.status === "completed" ? new Date() : existing.finishedAt,
+      duration:   body.duration   ?? existing.duration,
+    },
+  });
+
+  return NextResponse.json(updated);
+}
+
+export async function DELETE(_req: Request, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+
+  const existing = await prisma.workout.findFirst({
+    where: { id: params.id, userId: session.user.id },
+  });
+  if (!existing) return NextResponse.json({ error: "Séance introuvable" }, { status: 404 });
+
+  await prisma.workout.delete({ where: { id: params.id } });
+  return NextResponse.json({ success: true });
 }
