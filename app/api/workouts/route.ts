@@ -1,48 +1,67 @@
-import { auth } from "@/auth";
+/**
+ * GET  /api/workouts — List user's completed workouts (paginated)
+ * POST /api/workouts — Start a new workout session
+ */
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
-    const userId = session.user!.id!;
-    const workouts = await prisma.workout.findMany({
-      where: { userId },
-      orderBy: { startedAt: "desc" },
-      include: {
-        exercises: {
-          include: {
-            exercise: true,
-            sets: true,
-          },
+  const { searchParams } = new URL(req.url);
+  const limit  = Math.min(Number(searchParams.get("limit") ?? 20), 50);
+  const cursor = searchParams.get("cursor") ?? undefined;
+
+  const workouts = await prisma.workout.findMany({
+    where:   { userId: session.user.id, status: "completed" },
+    orderBy: { startedAt: "desc" },
+    take:    limit,
+    ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+    include: {
+      exercises: {
+        include: {
+          exercise: { select: { name: true, muscleGroup: true } },
+          sets:     { where: { isCompleted: true } },
         },
+        orderBy: { order: "asc" },
       },
-    });
+    },
+  });
 
-    return NextResponse.json(workouts);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch workouts" }, { status: 500 });
-  }
+  // Compute total volume per workout
+  const enriched = workouts.map((w) => {
+    const totalVolume = w.exercises.reduce((acc, ex) => {
+      return acc + ex.sets.reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0);
+    }, 0);
+    return { ...w, totalVolume };
+  });
+
+  return NextResponse.json({
+    workouts: enriched,
+    nextCursor: workouts.length === limit ? workouts[workouts.length - 1].id : null,
+  });
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
 
-    const userId = session.user!.id!;
-    const workout = await prisma.workout.create({
-      data: {
-        userId,
-        status: "in_progress",
-        startedAt: new Date(),
-      },
-    });
+  // Abandon any lingering in_progress workout before starting a new one
+  await prisma.workout.updateMany({
+    where:  { userId: session.user.id, status: "in_progress" },
+    data:   { status: "completed", finishedAt: new Date() },
+  });
 
-    return NextResponse.json(workout, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to create workout" }, { status: 500 });
-  }
+  const body = await req.json().catch(() => ({}));
+  const workout = await prisma.workout.create({
+    data: {
+      userId: session.user.id,
+      name:   body.name ?? null,
+      status: "in_progress",
+    },
+  });
+
+  return NextResponse.json(workout, { status: 201 });
 }
