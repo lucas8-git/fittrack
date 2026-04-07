@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Enable PWA-ready headers
   async headers() {
     return [
@@ -15,7 +14,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Experimental features for better performance
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts"],
   },
