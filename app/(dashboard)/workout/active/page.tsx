@@ -1,21 +1,20 @@
-'use client';
+import { Suspense } from "react";
+import ActiveWorkout from "@/components/workout/ActiveWorkout";
 
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { ActiveWorkout } from '@/components';
+export const metadata = { title: "FitTrack — Séance en cours" };
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function ActiveWorkoutPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const workoutId = searchParams.get('id');
-
-  if (!workoutId) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-foreground">Workout not found</p>
-      </div>
-    );
-  }
-
-  return <ActiveWorkout workoutId={workoutId} />;
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <ActiveWorkout />
+    </Suspense>
+  );
 }
