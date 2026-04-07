@@ -1,25 +1,19 @@
-'use client';
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import BottomNav from "@/components/layout/BottomNav";
 
-import { ReactNode } from 'react';
-import { auth } from '@/auth';
-import { redirect } from 'next/navigation';
-import { TopBar, BottomNav } from '@/components';
-
-export const metadata = { title: 'Dashboard | FitTrack' };
-
-export default async function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await auth();
-
-  if (!session) {
-    redirect('/login');
-  }
+  if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <TopBar />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto">
+      {/* Main content with bottom padding for nav */}
+      <main className="flex-1 pb-[80px]">{children}</main>
       <BottomNav />
     </div>
   );
