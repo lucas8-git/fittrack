@@ -1,44 +1,44 @@
-'use client';
+import { Suspense } from "react";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
+import TopBar from "@/components/layout/TopBar";
+import HistoryList from "@/components/workout/HistoryList";
 
-import { auth } from '@/auth';
-import { HistoryList } from '@/components';
-import { prisma } from '@/lib/db';
-import { Suspense } from 'react';
+export const metadata = { title: "FitTrack — Historique" };
 
-export const metadata = { title: 'History | FitTrack' };
-
-async function HistoryContent() {
+export default async function HistoryPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
 
   const workouts = await prisma.workout.findMany({
-    where: { userId, status: 'completed' },
-    orderBy: { startedAt: 'desc' },
+    where:   { userId: session!.user!.id!, status: "completed" },
+    orderBy: { startedAt: "desc" },
+    take:    20,
     include: {
       exercises: {
         include: {
           exercise: { select: { name: true, muscleGroup: true } },
-          sets: { where: { isCompleted: true } },
+          sets:     { where: { isCompleted: true } },
         },
       },
     },
   });
 
-  return <HistoryList workouts={workouts} />;
-}
+  const enriched = workouts.map((w) => ({
+    ...w,
+    totalVolume: w.exercises.reduce(
+      (acc, ex) => acc + ex.sets.reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0),
+      0
+    ),
+    exerciseCount: w.exercises.length,
+    setCount: w.exercises.reduce((acc, ex) => acc + ex.sets.length, 0),
+  }));
 
-export default function HistoryPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <div className="bg-primary-500 pt-14 pb-6 px-5">
-        <h1 className="text-2xl font-extrabold text-white">Historique</h1>
-        <p className="text-primary-200 text-sm mt-1">Toutes tes séances passées</p>
-      </div>
-      <div className="px-4 py-6 pb-20">
-        <Suspense fallback={<div className="text-center py-12">Chargement...</div>}>
-          <HistoryContent />
-        </Suspense>
-      </div>
+      <TopBar title="Historique" subtitle={`${workouts.length} séances`} />
+      <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" /></div>}>
+        <HistoryList initialWorkouts={JSON.parse(JSON.stringify(enriched))} />
+      </Suspense>
     </div>
   );
 }
