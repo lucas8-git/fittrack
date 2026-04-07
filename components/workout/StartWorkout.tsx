@@ -1,93 +1,63 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Exercise } from '@prisma/client';
-import { Plus, Play } from 'lucide-react';
-import { MUSCLE_LABELS } from '@/lib/utils';
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Play, Dumbbell } from "lucide-react";
 
-export function StartWorkout({ exercises }: { exercises: Exercise[] }) {
-  const router = useRouter();
-  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+export default function StartWorkout() {
+  const router  = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const grouped = exercises.reduce((acc, ex) => {
-    if (!acc[ex.muscleGroup]) acc[ex.muscleGroup] = [];
-    acc[ex.muscleGroup].push(ex);
-    return acc;
-  }, {} as Record<string, Exercise[]>);
-
-  const handleStartWorkout = async () => {
+  async function startSession() {
     setLoading(true);
-    try {
-      const res = await fetch('/api/workouts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!res.ok) throw new Error('Failed to create workout');
-      const workout = await res.json();
-
-      for (const exerciseId of selectedExercises) {
-        await fetch(`/api/workouts/${workout.id}/exercises`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ exerciseId }),
-        });
-      }
-
-      router.push(`/workout/active?id=${workout.id}`);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toggleExercise = (id: string) => {
-    setSelectedExercises((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
+    const res = await fetch("/api/workouts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const workout = await res.json();
+    router.push(`/workout/active?id=${workout.id}`);
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        {Object.entries(grouped).map(([group, groupExercises]) => (
-          <div key={group}>
-            <h3 className="font-semibold text-foreground mb-2 text-sm">
-              {MUSCLE_LABELS[group] || group}
-            </h3>
-            <div className="space-y-2">
-              {groupExercises.map((ex) => (
-                <button
-                  key={ex.id}
-                  onClick={() => toggleExercise(ex.id)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
-                    selectedExercises.includes(ex.id)
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-neutral-200 hover:border-neutral-300'
-                  }`}
-                >
-                  <p className="font-medium text-foreground">{ex.name}</p>
-                  {ex.notes && (
-                    <p className="text-xs text-neutral-500 mt-1">{ex.notes}</p>
-                  )}
-                </button>
-              ))}
+    <div className="min-h-screen flex flex-col bg-background">
+      {/* Header */}
+      <div className="bg-primary-500 pt-14 pb-10 px-6 text-center">
+        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Dumbbell size={30} className="text-white" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">Nouvelle séance</h1>
+        <p className="text-primary-200 text-sm mt-1">Mode libre — ajoute tes exercices au fur et à mesure</p>
+      </div>
+
+      <div className="px-4 -mt-5 space-y-3">
+        {[
+          { icon: "⚡", title: "Démarrage rapide",       desc: "Lance ta séance et ajoute tes exercices à la volée." },
+          { icon: "💡", title: "Charge suggérée",         desc: "FitTrack te propose la charge de ta dernière série." },
+          { icon: "⏱",  title: "Timer de repos intégré", desc: "Configure ton temps de repos par exercice." },
+          { icon: "🏆", title: "PR automatiques",         desc: "Tes records sont détectés et célébrés en temps réel." },
+        ].map((tip) => (
+          <div key={tip.title} className="bg-white rounded-2xl shadow-card p-4 flex gap-3 items-start">
+            <span className="text-2xl mt-0.5">{tip.icon}</span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{tip.title}</p>
+              <p className="text-xs text-neutral-400 mt-0.5">{tip.desc}</p>
             </div>
           </div>
         ))}
       </div>
 
-      <button
-        onClick={handleStartWorkout}
-        disabled={selectedExercises.length === 0 || loading}
-        className="w-full bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
-      >
-        <Play size={18} />
-        Commencer ({selectedExercises.length} exercices)
-      </button>
+      {/* CTA */}
+      <div className="px-4 mt-6">
+        <button
+          onClick={startSession}
+          disabled={loading}
+          className="w-full py-4 bg-primary-500 text-white font-bold rounded-2xl shadow-primary-glow flex items-center justify-center gap-2 text-base hover:bg-primary-600 active:scale-[0.98] transition-all disabled:opacity-60"
+        >
+          <Play size={18} fill="white" />
+          {loading ? "Démarrage..." : "Démarrer la séance"}
+        </button>
+      </div>
     </div>
   );
 }
