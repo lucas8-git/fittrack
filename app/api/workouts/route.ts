@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   // Abandon any lingering in_progress workout before starting a new one
   await prisma.workout.updateMany({
     where:  { userId: session.user.id, status: "in_progress" },
-    data:   { status: "completed", finishedAt: new Date() },
+    data:   { status: "completed", completedAt: new Date() },
   });
 
   const body = await req.json().catch(() => ({}));
