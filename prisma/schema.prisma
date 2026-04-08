@@ -1,124 +1,103 @@
 // FitTrack — Prisma Schema
-// SQLite for local dev. Switch provider to "postgresql" + update DATABASE_URL for production.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  // "postgresql" for production (Vercel Postgres / Supabase / Neon)
-  // "sqlite"     for local development
-  // Switch via DATABASE_URL env var — no code change needed.
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // "postgresql" for production (Vercel Postgres / Neon)
+  // DATABASE_URL                       = pooled connection (pgBouncer) — used at runtime
+  // DATABASE_POSTGRES_URL_NON_POOLING  = direct connection — used by prisma db push / migrations
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_POSTGRES_URL_NON_POOLING")
 }
 
-// ─── USER ──────────────────────────────────────────────────────────────────────
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String?  // Hashed with bcrypt — NEVER stored in plain text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  // Relations
-  workouts        Workout[]
-  bodyEntries     BodyEntry[]
-  customExercises Exercise[]  @relation("CustomExercises")
-
-  // NextAuth required models
-  accounts Account[]
-  sessions Session[]
-
-  @@index([email])
+  workouts  Workout[]
+  bodyStats BodyEntry[]
+  accounts  Account[]
+  sessions  Session[]
 }
 
-// ─── EXERCISE LIBRARY ────────────────────────────────────────────────────────────
 model Exercise {
-  id           String  @id @default(cuid())
-  name         String
-  // Categories: strength | cardio | olympic | stretching
-  category     String  @default("strength")
-  // Muscle groups: chest | back | legs | shoulders | arms | core | full_body
-  muscleGroup  String
-  // Equipment: barbell | dumbbell | cable | machine | bodyweight | kettlebell | other
-  equipment    String  @default("barbell")
-  instructions String?
-  isCustom     Boolean @default(false)
-  createdBy    String?
+  id          String   @id @default(cuid())
+  name        String
+  muscleGroup String
+  equipment   String?
+  description String?
+  isCustom    Boolean  @default(false)
+  userId      String?
+  createdAt   DateTime @default(now())
 
-  creator          User?             @relation("CustomExercises", fields: [createdBy], references: [id])
   workoutExercises WorkoutExercise[]
 }
 
-// ─── WORKOUT ──────────────────────────────────────────────────────────────────────────
 model Workout {
-  id         String    @id @default(cuid())
-  userId     String
-  name       String?
-  notes      String?
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  duration   Int?      // seconds
-  // Status: in_progress | completed
-  status     String    @default("in_progress")
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  name        String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  duration    Int?      // seconds
+  notes       String?
+  status      String    @default("in_progress") // "in_progress" | "completed"
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises WorkoutExercise[]
-
-  @@index([userId])
-  @@index([userId, status])
 }
 
 model WorkoutExercise {
-  id         String  @id @default(cuid())
+  id         String   @id @default(cuid())
   workoutId  String
   exerciseId String
   order      Int
   notes      String?
+  createdAt  DateTime @default(now())
 
-  workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exercise Exercise @relation(fields: [exerciseId], references: [id])
+  workout  Workout     @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise    @relation(fields: [exerciseId], references: [id])
   sets     WorkoutSet[]
-
-  @@index([workoutId])
 }
 
 model WorkoutSet {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   workoutExerciseId String
   setNumber         Int
-  weight            Float?  // kg
+  weight            Float?
   reps              Int?
-  // Types: normal | warmup | dropset | failure
-  type              String  @default("normal")
-  isCompleted       Boolean @default(false)
+  duration          Int?     // seconds, for timed exercises
+  type              String   @default("normal") // "normal" | "warmup" | "dropset" | "failure"
+  isCompleted       Boolean  @default(false)
   createdAt         DateTime @default(now())
 
   workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
-
-  @@index([workoutExerciseId])
 }
 
-// ─── BODY TRACKING ─────────────────────────────────────────────────────────────────
 model BodyEntry {
-  id         String   @id @default(cuid())
-  userId     String
-  date       DateTime @default(now())
-  weight     Float?   // kg
-  bodyFat    Float?   // %
-  muscleMass Float?   // %
-  notes      String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  weight    Float?
+  bodyFat   Float?
+  notes     String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
-// ─── NEXTAUTH REQUIRED MODELS ────────────────────────────────────────────────────────
+// NextAuth models
 model Account {
   id                String  @id @default(cuid())
   userId            String
