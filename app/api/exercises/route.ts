@@ -37,7 +37,7 @@ export async function GET(req: Request) {
         {
           OR: [
             { isCustom: false },
-            { isCustom: true, createdBy: session.user.id },
+            { isCustom: true, userId: session.user.id },
           ],
         },
       ],
@@ -53,10 +53,10 @@ export async function GET(req: Request) {
  * Creates a custom exercise for the authenticated user.
  */
 const createSchema = z.object({
-  name:         z.string().min(2).max(100),
-  muscleGroup:  z.enum(["chest","back","legs","shoulders","arms","core","full_body"]),
-  equipment:    z.enum(["barbell","dumbbell","cable","machine","bodyweight","kettlebell","other"]).optional(),
-  instructions: z.string().max(1000).optional(),
+  name:        z.string().min(2).max(100),
+  muscleGroup: z.enum(["chest","back","legs","shoulders","arms","core","full_body"]),
+  equipment:   z.enum(["barbell","dumbbell","cable","machine","bodyweight","kettlebell","other"]).optional(),
+  description: z.string().max(1000).optional(),
 });
 
 export async function POST(req: Request) {
@@ -78,8 +78,8 @@ export async function POST(req: Request) {
     const exercise = await prisma.exercise.create({
       data: {
         ...parsed.data,
-        isCustom:  true,
-        createdBy: session.user.id,
+        isCustom: true,
+        userId:   session.user.id,
       },
     });
 
