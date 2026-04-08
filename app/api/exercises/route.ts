@@ -1,11 +1,11 @@
 /**
  * GET /api/exercises
- * Returns exercises with optional filters: muscleGroup, equipment, search, category.
- * Server-side validated. Cached for performance (exercises rarely change).
+ * Returns exercises with optional filters: muscleGroup, equipment, search.
  */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
+import { z } from "zod";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -17,23 +17,23 @@ export async function GET(req: Request) {
   const search      = searchParams.get("search")?.trim() || "";
   const muscleGroup = searchParams.get("muscleGroup") || "";
   const equipment   = searchParams.get("equipment") || "";
-  const category    = searchParams.get("category") || "";
 
   const exercises = await prisma.exercise.findMany({
     where: {
       AND: [
+        // Search by name (case-insensitive via contains)
         search
-          ? { name: { contains: search } }
+          ? { name: { contains: search, mode: "insensitive" } }
           : {},
+        // Filter by muscle group
         muscleGroup && muscleGroup !== "all"
           ? { muscleGroup }
           : {},
+        // Filter by equipment
         equipment && equipment !== "all"
           ? { equipment }
           : {},
-        category && category !== "all"
-          ? { category }
-          : {},
+        // Show global exercises + user's custom ones
         {
           OR: [
             { isCustom: false },
@@ -52,13 +52,10 @@ export async function GET(req: Request) {
  * POST /api/exercises
  * Creates a custom exercise for the authenticated user.
  */
-import { z } from "zod";
-
 const createSchema = z.object({
   name:         z.string().min(2).max(100),
   muscleGroup:  z.enum(["chest","back","legs","shoulders","arms","core","full_body"]),
-  equipment:    z.enum(["barbell","dumbbell","cable","machine","bodyweight","kettlebell","other"]),
-  category:     z.enum(["strength","cardio","olympic","stretching"]).optional(),
+  equipment:    z.enum(["barbell","dumbbell","cable","machine","bodyweight","kettlebell","other"]).optional(),
   instructions: z.string().max(1000).optional(),
 });
 
