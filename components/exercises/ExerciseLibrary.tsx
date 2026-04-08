@@ -81,7 +81,9 @@ function ExerciseCard({
 }) {
   const accent = MUSCLE_ACCENT[exercise.muscleGroup] ?? "blue";
   const muscleLabel = MUSCLE_LABELS[exercise.muscleGroup] ?? exercise.muscleGroup;
-  const equipLabel  = EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment;
+  const equipLabel  = exercise.equipment
+    ? (EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment)
+    : "";
 
   return (
     <div
@@ -91,6 +93,7 @@ function ExerciseCard({
         onSelect && "cursor-pointer hover:shadow-card-hover active:scale-[0.99] transition-all"
       )}
     >
+      {/* Left accent bar */}
       <div
         className={cn(
           "w-1 shrink-0",
@@ -101,6 +104,7 @@ function ExerciseCard({
         )}
       />
 
+      {/* Icon */}
       <div className="p-3 flex items-center">
         <div className={cn(
           "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
@@ -113,6 +117,7 @@ function ExerciseCard({
         </div>
       </div>
 
+      {/* Content */}
       <div className="flex-1 py-3 pr-3 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-foreground leading-tight">
@@ -123,11 +128,14 @@ function ExerciseCard({
           )}
         </div>
         <p className="text-xs text-neutral-400 mt-0.5">{muscleLabel}</p>
-        <div className="flex items-center gap-1.5 mt-2">
-          <Badge variant="neutral">{equipLabel}</Badge>
-        </div>
+        {equipLabel && (
+          <div className="flex items-center gap-1.5 mt-2">
+            <Badge variant="neutral">{equipLabel}</Badge>
+          </div>
+        )}
       </div>
 
+      {/* Chevron */}
       {onSelect && (
         <div className="flex items-center pr-3">
           <ChevronRight size={16} className="text-neutral-300" />
@@ -147,15 +155,18 @@ function ExerciseSheet({
 }) {
   if (!exercise) return null;
   const muscleLabel = MUSCLE_LABELS[exercise.muscleGroup] ?? exercise.muscleGroup;
-  const equipLabel  = EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment;
-  const accent = MUSCLE_ACCENT[exercise.muscleGroup] ?? "blue";
+  const equipLabel  = exercise.equipment
+    ? (EQUIPMENT_LABELS[exercise.equipment] ?? exercise.equipment)
+    : "";
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
+      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
+      {/* Sheet */}
       <div className="relative bg-white rounded-t-3xl p-6 pb-10 shadow-2xl max-h-[80vh] overflow-y-auto">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -170,22 +181,21 @@ function ExerciseSheet({
           </button>
         </div>
 
-        <div className="flex gap-2 mb-5">
-          <Badge variant="neutral">{equipLabel}</Badge>
-          <Badge variant={accent === "blue" ? "blue" : accent === "green" ? "green" : "orange"}>
-            {exercise.category === "strength" ? "Force" :
-             exercise.category === "cardio"   ? "Cardio" :
-             exercise.category === "olympic"  ? "Haltérophilie" : "Étirements"}
-          </Badge>
-        </div>
+        {/* Tags */}
+        {equipLabel && (
+          <div className="flex gap-2 mb-5">
+            <Badge variant="neutral">{equipLabel}</Badge>
+          </div>
+        )}
 
-        {exercise.instructions && (
+        {/* Instructions */}
+        {exercise.description && (
           <>
             <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2">
               Technique
             </p>
             <p className="text-sm text-neutral-600 leading-relaxed">
-              {exercise.instructions}
+              {exercise.description}
             </p>
           </>
         )}
@@ -221,6 +231,7 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
     }
   }, [search, muscle, equipment]);
 
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(fetchExercises, 300);
     return () => clearTimeout(t);
@@ -230,6 +241,7 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* ── Header blue ── */}
       <div className="bg-primary-500 pt-14 pb-6 px-4">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -246,6 +258,7 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
           </button>
         </div>
 
+        {/* Search bar */}
         <div className="relative">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
@@ -266,6 +279,7 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {/* ── Filter toggle bar ── */}
       <div className="bg-white border-b border-neutral-100 px-4 py-3">
         <button
           onClick={() => setShowFilters((v) => !v)}
@@ -285,6 +299,7 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
           )}
         </button>
 
+        {/* Expanded filters */}
         {showFilters && (
           <div className="mt-4 space-y-4">
             <FilterRow
@@ -311,8 +326,10 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
         )}
       </div>
 
+      {/* ── Exercise list ── */}
       <div className="flex-1 px-4 py-4 space-y-2.5 overflow-y-auto">
         {loading ? (
+          // Skeleton loading
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl h-20 animate-pulse shadow-card" />
           ))
@@ -333,10 +350,12 @@ export default function ExerciseLibrary({ userId }: { userId: string }) {
         )}
       </div>
 
+      {/* ── Exercise detail sheet ── */}
       {selected && (
         <ExerciseSheet exercise={selected} onClose={() => setSelected(null)} />
       )}
 
+      {/* ── Add custom exercise sheet ── */}
       {showAdd && (
         <AddExerciseSheet
           onClose={() => setShowAdd(false)}
@@ -358,7 +377,7 @@ function AddExerciseSheet({
   const [name,         setName]         = useState("");
   const [muscleGroup,  setMuscleGroup]  = useState("chest");
   const [equipment,    setEquipment]    = useState("barbell");
-  const [instructions, setInstructions] = useState("");
+  const [description,  setDescription]  = useState("");
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState("");
 
@@ -370,7 +389,7 @@ function AddExerciseSheet({
       const res = await fetch("/api/exercises", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, muscleGroup, equipment, instructions }),
+        body: JSON.stringify({ name, muscleGroup, equipment, description }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -432,9 +451,9 @@ function AddExerciseSheet({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-neutral-500 block mb-1.5">Instructions (optionnel)</label>
+          <label className="text-xs font-semibold text-neutral-500 block mb-1.5">Description (optionnel)</label>
           <textarea
-            value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={3}
+            value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
             placeholder="Décris la technique..."
             className="w-full px-4 py-3 bg-neutral-50 border border-neutral-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           />
@@ -446,7 +465,7 @@ function AddExerciseSheet({
           type="submit" disabled={loading}
           className="w-full py-3.5 bg-primary-500 text-white font-bold rounded-xl shadow-primary-glow disabled:opacity-60 text-sm"
         >
-          {loading ? "Création..." : "Créer l'exercice"}
+          {loading ? "Création..." : "Créer l&apos;exercice"}
         </button>
       </form>
     </div>
