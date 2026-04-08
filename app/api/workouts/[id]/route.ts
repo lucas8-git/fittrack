@@ -45,11 +45,11 @@ export async function PATCH(req: Request, { params }: Params) {
   const updated = await prisma.workout.update({
     where: { id: params.id },
     data: {
-      status:     body.status     ?? existing.status,
-      notes:      body.notes      ?? existing.notes,
-      name:       body.name       ?? existing.name,
-      finishedAt: body.status === "completed" ? new Date() : existing.finishedAt,
-      duration:   body.duration   ?? existing.duration,
+      status:      body.status     ?? existing.status,
+      notes:       body.notes      ?? existing.notes,
+      name:        body.name       ?? existing.name,
+      completedAt: body.status === "completed" ? new Date() : existing.completedAt,
+      duration:    body.duration   ?? existing.duration,
     },
   });
 
